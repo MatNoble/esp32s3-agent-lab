@@ -40,7 +40,32 @@
   * **`3V3`**：来自板载 **CJ6107A33GW** 高性能 LDO 稳压器，最大输出电流约 500mA，注意避免短路。
   * **`GND`**：左右排针均有引出，布线时需共地。
 
+### 1.3 外部存储器总线配置（N16R8 物理总线与 dio_opi 黄金法则）
+
+本板实际硬件为 **N16R8**（16MB Flash + 8MB PSRAM），但 PlatformIO 默认板型 `esp32-s3-devkitc-1` 是按无 PSRAM / 8MB Flash 配置的。**新建任何工程时，必须显式声明外部总线类型**：
+
+```ini
+; N16R8 外部存储总线四件套（缺一不可）
+board_build.flash_mode = dio
+board_upload.flash_size = 16MB
+board_build.partitions = default_16MB.csv
+board_build.arduino.memory_type = dio_opi
+
+build_flags = 
+    -DBOARD_HAS_PSRAM
+```
+
+#### 什么是 `board_build.arduino.memory_type = dio_opi`？
+该配置项决定了引导程序与硬件总线的物理线缆连接协议，由下划线分隔两部分：
+* **前半段 `dio`（Dual I/O SPI，2 根数据线）**：
+  * 对应板载 **16MB Flash**。硬件 ROM 开机日志明确锁定 `mode:DIO, clock div:1`。若误设为 `qio`（4 线），引导程序访问未连接的引脚会在 `entry` 瞬间卡死。
+* **后半段 `opi`（Octal Peripheral Interface，8 根数据线）**：
+  * 对应芯片内嵌的 **8MB 高速 PSRAM**。R8 规格采用的是八线制并行总线（D0~D7，支持高速 DDR 双沿传输）。
+* **避坑防呆**：
+  * 板型默认采用 `qspi`（4 线模式）。若不显式指定为 `opi`，底层驱动会用 4 线协议与 8 线物理硬件握手，握手超时失败导致 **`psramFound()` 永远返回 `false`**（8MB 大内存直接隐身失效）。
+
 ---
+
 
 ## 2. 项目目录规范与双端口架构
 
@@ -80,7 +105,8 @@
 * **硬件机制**：原理图内嵌 **Q1/Q2 (SS8050-G) 双三极管自动下载电路**，由 DTR/RTS 控制复位，烧录完成百分之百自动重启，**绝不掉线**。
 * **PlatformIO 黄金配置法则**：
   * **严禁**添加 `-DARDUINO_USB_CDC_ON_BOOT=1`（否则日志会被劫持至虚空的原生 USB）。
-  * 强制指定 `board_build.flash_mode = dio`。
+  * 强制指定 `board_build.flash_mode = dio` 与 `board_build.arduino.memory_type = dio_opi`（N16R8 规范）。
+  * 必须添加 `build_flags = -DBOARD_HAS_PSRAM` 激活 8MB Octal PSRAM。
 * **执行命令**：
   ```bash
   ./run.sh uart
@@ -93,7 +119,8 @@
 * **设备特征**：识别为带有芯片 MAC 地址的设备，如 `/dev/cu.usbmodem84C7BB7AC2D41`
 * **硬件机制**：DP/DN 差分引脚直通芯片内部（GPIO 19/20），无三极管复位控制。烧录后若停在 ROM 下载等待模式，需轻按一下单片机上的物理 `RST` 键。
 * **PlatformIO 黄金配置法则**：
-  * 必须加入 `build_flags = -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MODE=1`（`USB_MODE=1` = 硬件 CDC+JTAG 外设，即 0x303a:0x1001 设备；板级默认即此值，显式写出更稳妥）。
+  * 必须配置 N16R8 总线：`board_build.flash_mode = dio` 与 `board_build.arduino.memory_type = dio_opi`。
+  * 必须加入 `build_flags = -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MODE=1 -DBOARD_HAS_PSRAM`（`USB_MODE=1` = 硬件 CDC+JTAG 外设，即 0x303a:0x1001 设备；板级默认即此值，显式写出更稳妥）。
   * 仅在做 U 盘 / HID / DFU 等 TinyUSB 应用时才改用 `-DARDUINO_USB_MODE=0`（软件协议栈，会占用 OTG 外设并失去 JTAG 调试能力）。
   * 必须开启 `monitor_dtr = 1` 与 `monitor_rts = 1`。
   * C++ 代码的 `setup()` 中务必调用 `Serial.setTxTimeoutMs(0);` 消除缓冲区死锁。
@@ -137,3 +164,16 @@
 
 ### 故障 3：终端提示 `zsh: command not found: pio`
 * **处理方案**：执行 `source ~/.zshrc` 刷新环境。
+
+### 故障 4：代码中 `psramFound()` 返回 `false` 或 `ESP.getPsramSize()` 为 0
+* **诊断原因**：
+  1. 未配置 `board_build.arduino.memory_type = dio_opi`（默认按 4 线 QSPI 初始化，导致与 8 线物理 PSRAM 握手超时失败）；
+  2. 未在 `build_flags` 中显式添加 `-DBOARD_HAS_PSRAM`。
+* **处理方案**：
+  * 在 `platformio.ini` 中加入：
+    ```ini
+    board_build.arduino.memory_type = dio_opi
+    build_flags = 
+        -DBOARD_HAS_PSRAM
+    ```
+  * 修改 `platformio.ini` 后建议执行 `pio run -t clean` 重新编译。
