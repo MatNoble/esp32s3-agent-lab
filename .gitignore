@@ -10,7 +10,5 @@ compile_commands.json
 .vscode/launch.json
 .vscode/ipch
 
-# 厂商资料中的大体积二进制（可从官方渠道重新获取，不入库）
-hardware_docs/下载工具/
-hardware_docs/软件/
-hardware_docs/固件/
+# 厂商资料目录整体不入库（版权归属乐鑫/沁恒等厂商且体积大；本地保留，可从官方渠道重新获取）
+hardware_docs/
