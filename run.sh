@@ -47,7 +47,17 @@ case "$TARGET" in
     echo "=========================================="
     echo "📋 当前 Mac 检测到的串口设备:"
     echo "=========================================="
-    ls -l /dev/cu.usbmodem* /dev/cu.wch* /dev/cu.usbserial* 2>/dev/null || echo "未找到常见单片机串口设备，请检查 USB 连接。"
+    # 注意：不能用 "ls 通配符... || echo 未找到" 判断——ls 对任意一个未匹配的
+    # 通配符都会返回非零退出码（且 set -e 会让脚本直接退出）。改用 nullglob
+    # 让未匹配的通配符展开为空，再按数组是否非空判断
+    shopt -s nullglob
+    devices=(/dev/cu.usbmodem* /dev/cu.wch* /dev/cu.usbserial*)
+    shopt -u nullglob
+    if [ "${#devices[@]}" -gt 0 ]; then
+      ls -l "${devices[@]}"
+    else
+      echo "未找到常见单片机串口设备，请检查 USB 连接。"
+    fi
     ;;
 
   *)
