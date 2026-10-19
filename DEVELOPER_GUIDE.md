@@ -93,8 +93,8 @@
 * **设备特征**：识别为带有芯片 MAC 地址的设备，如 `/dev/cu.usbmodem84C7BB7AC2D41`
 * **硬件机制**：DP/DN 差分引脚直通芯片内部（GPIO 19/20），无三极管复位控制。烧录后若停在 ROM 下载等待模式，需轻按一下单片机上的物理 `RST` 键。
 * **PlatformIO 黄金配置法则**：
-  * 必须使用 `build_unflags = -DARDUINO_USB_MODE=1` 剔除板级默认定义。
-  * 必须加入 `build_flags = -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MODE=0`。
+  * 必须加入 `build_flags = -DARDUINO_USB_CDC_ON_BOOT=1 -DARDUINO_USB_MODE=1`（`USB_MODE=1` = 硬件 CDC+JTAG 外设，即 0x303a:0x1001 设备；板级默认即此值，显式写出更稳妥）。
+  * 仅在做 U 盘 / HID / DFU 等 TinyUSB 应用时才改用 `-DARDUINO_USB_MODE=0`（软件协议栈，会占用 OTG 外设并失去 JTAG 调试能力）。
   * 必须开启 `monitor_dtr = 1` 与 `monitor_rts = 1`。
   * C++ 代码的 `setup()` 中务必调用 `Serial.setTxTimeoutMs(0);` 消除缓冲区死锁。
 * **执行命令**：

@@ -47,7 +47,7 @@ case "$TARGET" in
     echo "=========================================="
     echo "📋 当前 Mac 检测到的串口设备:"
     echo "=========================================="
-    ls -l /dev/cu.usbmodem* /dev/cu.wch* 2>/dev/null || echo "未找到常见单片机串口设备，请检查 USB 连接。"
+    ls -l /dev/cu.usbmodem* /dev/cu.wch* /dev/cu.usbserial* 2>/dev/null || echo "未找到常见单片机串口设备，请检查 USB 连接。"
     ;;
 
   *)

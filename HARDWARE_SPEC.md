@@ -56,7 +56,7 @@
 | **macOS 识别名称** | `/dev/cu.usbmodem5D2F*` 或 `/dev/cu.wchusbserial*` | `/dev/cu.usbmodem84C7BB7AC2D41` (带 MAC) |
 | **对应项目工程** | [`00_hello_world_uart`](file:///Users/matnoble/Codes/ESP32/00_hello_world_uart) | [`01_hello_world_usb`](file:///Users/matnoble/Codes/ESP32/01_hello_world_usb) |
 | **硬件流控与复位** | CH343 自带 DTR/RTS 自动下载三极管复位电路 | 原生虚拟 USB，烧录后有时需要手动按一次物理 RST |
-| **PlatformIO 配置** | **严禁**开启 `ARDUINO_USB_CDC_ON_BOOT` | **必须**开启 `CDC_ON_BOOT=1` 且 `USB_MODE=0` |
+| **PlatformIO 配置** | **严禁**开启 `ARDUINO_USB_CDC_ON_BOOT` | **必须**开启 `CDC_ON_BOOT=1` 且保持 `USB_MODE=1` |
 | **代码打印对象** | 标准 `Serial.begin(115200)` | 标准 `Serial.begin(115200)`（已被重映射） |
 | **核心工程价值** | 稳定性极高、不丢包、出厂刷机防变砖 | 高吞吐通信、JTAG 硬件单步断点调试、模拟 HID/U盘 |
 
@@ -95,13 +95,13 @@ monitor_speed = 115200
 monitor_dtr = 1
 monitor_rts = 1
 
-; 剔除默认板型的 USB_MODE=1 (TinyUSB)，强制锁定为 USB_MODE=0 (JTAG/Serial 硬件直连)
-build_unflags = 
-    -DARDUINO_USB_MODE=1
-
+; 将 Serial 路由至原生 USB 的硬件 JTAG/Serial 外设 (HWCDC，枚举为 0x303a:0x1001)
+; ARDUINO_USB_MODE 语义（以 Arduino core 源码 HardwareSerial.h 为准）:
+;   1 = 硬件 CDC+JTAG 外设（保留 JTAG 单步调试能力，板级默认即此值）
+;   0 = TinyUSB 软件协议栈（仅在做 U盘/MSC、HID、DFU 等应用时才改用，会占用 OTG 外设）
 build_flags = 
     -DARDUINO_USB_CDC_ON_BOOT=1
-    -DARDUINO_USB_MODE=0
+    -DARDUINO_USB_MODE=1
 ```
 
 ---
@@ -115,7 +115,7 @@ build_flags =
    * 当使用原生 USB 时，如果电脑端没有开启终端接收，`Serial.print()` 发送缓冲区一旦填满，默认会阻塞整个 CPU 核心，导致单片机 `loop()` 停滞。
    * **防护代码**：在 `setup()` 中务必加入 `Serial.setTxTimeoutMs(0);` 实现非阻塞发送。
 3. **8MB PSRAM 释放规则**：
-   * 芯片内置 8MB PSRAM。需要大内存时，在 `platformio.ini` 中加入 `-DBOARD_HAS_PSRAM`。
+   * 芯片内置 8MB PSRAM。需要大内存时，在 `platformio.ini` 中加入 `-DBOARD_HAS_PSRAM`，**并同时设置 `board_build.arduino.memory_type = dio_opi`**（R8 为八线 PSRAM；PlatformIO 板型默认按无 PSRAM 的 `dio_qspi` 方式链接，缺此配置时 `psramFound()` 将返回 false）。
    * 在 C++ 中申请大块内存时，优先使用 `ps_malloc(size)` 或动态 STL 容器分配，严禁一次性在栈（Stack，通常仅 8KB）上分配大数组。
 4. **板载 WS2812B 刺眼调光黄金法则（低饱和度护眼模式）**：
    * 板载数字 RGB 效率极高，若直接使用满饱和纯色（如 `rgbLedWrite(pin, 30, 0, 0)`），直视极其眩目。
