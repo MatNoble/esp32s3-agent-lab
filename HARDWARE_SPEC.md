@@ -72,9 +72,18 @@ platform = espressif32
 board = esp32-s3-devkitc-1
 framework = arduino
 
-; 硬件实测 Flash 通信模式必须为 dio
+; 实际硬件为 N16R8（16MB Quad Flash + 8MB Octal PSRAM），
+; 板型 esp32-s3-devkitc-1 默认按 N8（8MB / 无 PSRAM）配置，故需以下三项显式纠正
 board_build.flash_mode = dio
+board_upload.flash_size = 16MB
+board_build.partitions = default_16MB.csv
+board_build.arduino.memory_type = dio_opi
+
 monitor_speed = 115200
+
+; 启用片外 8MB 八线 PSRAM（必须与上方 dio_opi 配套，缺一 psramFound() 即为 false）
+build_flags = 
+    -DBOARD_HAS_PSRAM
 
 ; 注：严禁在此处增加 -DARDUINO_USB_CDC_ON_BOOT=1，否则会将日志截胡到虚空的原生 USB 中！
 ```
@@ -88,7 +97,13 @@ platform = espressif32
 board = esp32-s3-devkitc-1
 framework = arduino
 
+; 实际硬件为 N16R8（16MB Quad Flash + 8MB Octal PSRAM），
+; 板型 esp32-s3-devkitc-1 默认按 N8（8MB / 无 PSRAM）配置，故需以下三项显式纠正
 board_build.flash_mode = dio
+board_upload.flash_size = 16MB
+board_build.partitions = default_16MB.csv
+board_build.arduino.memory_type = dio_opi
+
 monitor_speed = 115200
 
 ; 必须激活 DTR/RTS 握手，否则 Mac 下原生 CDC 无法触发输出
@@ -102,6 +117,7 @@ monitor_rts = 1
 build_flags = 
     -DARDUINO_USB_CDC_ON_BOOT=1
     -DARDUINO_USB_MODE=1
+    -DBOARD_HAS_PSRAM
 ```
 
 ---
@@ -115,7 +131,7 @@ build_flags =
    * 当使用原生 USB 时，如果电脑端没有开启终端接收，`Serial.print()` 发送缓冲区一旦填满，默认会阻塞整个 CPU 核心，导致单片机 `loop()` 停滞。
    * **防护代码**：在 `setup()` 中务必加入 `Serial.setTxTimeoutMs(0);` 实现非阻塞发送。
 3. **8MB PSRAM 释放规则**：
-   * 芯片内置 8MB PSRAM。需要大内存时，在 `platformio.ini` 中加入 `-DBOARD_HAS_PSRAM`，**并同时设置 `board_build.arduino.memory_type = dio_opi`**（R8 为八线 PSRAM；PlatformIO 板型默认按无 PSRAM 的 `dio_qspi` 方式链接，缺此配置时 `psramFound()` 将返回 false）。
+   * 两个基准工程已启用 PSRAM（`-DBOARD_HAS_PSRAM` + `board_build.arduino.memory_type = dio_opi`，R8 为八线 PSRAM，二者缺一 `psramFound()` 即返回 false；PlatformIO 板型默认按无 PSRAM 的 `dio_qspi` 方式链接）。新建工程请直接照抄基准工程的 `platformio.ini`。
    * 在 C++ 中申请大块内存时，优先使用 `ps_malloc(size)` 或动态 STL 容器分配，严禁一次性在栈（Stack，通常仅 8KB）上分配大数组。
 4. **板载 WS2812B 刺眼调光黄金法则（低饱和度护眼模式）**：
    * 板载数字 RGB 效率极高，若直接使用满饱和纯色（如 `rgbLedWrite(pin, 30, 0, 0)`），直视极其眩目。

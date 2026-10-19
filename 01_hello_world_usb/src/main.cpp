@@ -20,6 +20,15 @@ void setup() {
     Serial.println("==============================================");
     Serial.println("📌 当前物理通道: 原生 USB JTAG/Serial Debug Unit (0x303a:0x1001)");
     Serial.printf("🌡️ 芯片内部裸晶温度: %.2f °C\n", temperatureRead());
+
+    // PSRAM 挂载状态 (N16R8: 8MB 八线 PSRAM)
+    if (psramFound()) {
+        Serial.printf("🚀 外部 PSRAM 挂载成功: %lu MB 空闲 / 总计: %lu MB\n",
+                      (unsigned long)(ESP.getFreePsram() / (1024 * 1024)),
+                      (unsigned long)(ESP.getPsramSize() / (1024 * 1024)));
+    } else {
+        Serial.println("⚠️ PSRAM: 未挂载 (请检查 memory_type 是否为 dio_opi)");
+    }
     Serial.println("💡 状态指示灯: 开启蓝色呼吸测试 (专属原生 USB)");
     Serial.println("==============================================\n");
 }

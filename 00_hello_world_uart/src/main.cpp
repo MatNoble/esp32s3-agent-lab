@@ -39,8 +39,7 @@ void setup() {
                       (unsigned long)(ESP.getFreePsram() / (1024 * 1024)), 
                       (unsigned long)(ESP.getPsramSize() / (1024 * 1024)));
     } else {
-        Serial.println("💡 PSRAM: 硬件内置 8MB，当前工程未启用");
-        Serial.println("   (启用方法: -DBOARD_HAS_PSRAM + board_build.arduino.memory_type = dio_opi)");
+        Serial.println("⚠️ PSRAM: 挂载失败 (工程已启用，请检查 memory_type 是否为 dio_opi)");
     }
 
     // 3. 芯片 Flash 容量
