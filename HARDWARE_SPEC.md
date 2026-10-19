@@ -53,12 +53,14 @@
 | :--- | :--- | :--- |
 | **物理桥接介质** | 板载 **南京沁恒 CH343** 高速 USB-UART 芯片 | **直连 ESP32-S3 硅片内部** USB 控制器 |
 | **USB 标识** | `VID = 0x1A86`, `PID = 0x55D3` | `VID = 0x303A`, `PID = 0x1001` |
-| **macOS 识别名称** | `/dev/cu.usbmodem5D2F*` 或 `/dev/cu.wchusbserial*` | `/dev/cu.usbmodem84C7BB7AC2D41` (带 MAC) |
+| **macOS 端口名** | `/dev/cu.usbmodem*`、`/dev/cu.wch*` 等（名称由系统分配，不固定） | `/dev/cu.usbmodem*`（可能含芯片 MAC，也可能是 `usbmodem101` 这类位置名） |
 | **对应项目工程** | [`00_hello_world_uart`](file:///Users/matnoble/Codes/ESP32/00_hello_world_uart) | [`01_hello_world_usb`](file:///Users/matnoble/Codes/ESP32/01_hello_world_usb) |
 | **硬件流控与复位** | CH343 自带 DTR/RTS 自动下载三极管复位电路 | 原生虚拟 USB，烧录后有时需要手动按一次物理 RST |
 | **PlatformIO 配置** | **严禁**开启 `ARDUINO_USB_CDC_ON_BOOT` | **必须**开启 `CDC_ON_BOOT=1` 且保持 `USB_MODE=1` |
 | **代码打印对象** | 标准 `Serial.begin(115200)` | 标准 `Serial.begin(115200)`（已被重映射） |
 | **核心工程价值** | 稳定性极高、不丢包、出厂刷机防变砖 | 高吞吐通信、JTAG 硬件单步断点调试、模拟 HID/U盘 |
+
+> ⚠️ 端口名不能作为判别依据：请以 `pio device list` 显示的 `VID:PID` 为准（`1A86:*` = UART 口，`303A:1001` = 原生 USB 口）。
 
 ---
 

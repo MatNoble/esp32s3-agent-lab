@@ -1,4 +1,4 @@
-# AGENT.md - AI Coding Agent 核心开发守则与系统指引
+# AGENTS.md - AI Coding Agent 核心开发守则与系统指引
 
 > **适用对象**：所有接入本工作区进行代码编写、构建调试、硬件驱动或文档维护的 AI Coding Agent。  
 > **核心准则**：硬件在席，操作有痕；先阅约束，后落代码；严格防护，杜绝烧蚀。
@@ -9,8 +9,8 @@
 
 * **工作区根目录**：`/Users/matnoble/Codes/ESP32`
 * **主控模组**：ESP32-S3-WROOM-1-N16R8（Xtensa® 32-bit LX7 双核，主频最高 240MHz）
-* **存储规格**：16MB Flash（Quad/Dual SPI，ROM 锁定 **`DIO`** 模式）+ 8MB PSRAM（**`Octal SPI / OPI`** 八线高速）
-* **板载物理接口**：双 Type-C 独立接口（左侧原生 USB直连 SoC，右侧 CH343P 硬件串口转接）
+* **存储规格**：16MB Flash（Quad 器件，实测仅 **`DIO`** 模式可启动）+ 8MB PSRAM（**`Octal SPI / OPI`** 八线高速）
+* **板载物理接口**：双 Type-C 独立接口，以丝印标签识别——「USB」口为原生 USB 直连 SoC，「UART/COM」口经板载 CH343P 串口芯片转接（不要依赖左右方位判断端口）
 * **宿主开发环境**：Mac (Apple Silicon) + macOS + PlatformIO CLI（安装路径：`~/.platformio/penv/bin/pio`）
 * **自动化脚本**：项目根目录 [`run.sh`](file:///Users/matnoble/Codes/ESP32/run.sh)
 
@@ -22,7 +22,7 @@
 
 ```text
        ┌──────────────┐
-       │   AGENT.md   │  <-- 【第一入口】本守则：行动准则、安全红线、架构蓝图
+       │  AGENTS.md   │  <-- 【第一入口】本守则：行动准则、安全红线、架构蓝图
        └──────┬───────┘
               │
        ┌──────┴───────────────┐
@@ -33,10 +33,10 @@
 └──────────────────┘   └─────────────────┘
 ```
 
-1. **[`AGENT.md`](file:///Users/matnoble/Codes/ESP32/AGENT.md)**（当前文件）：确立安全红线与编译规则。
+1. **[`AGENTS.md`](file:///Users/matnoble/Codes/ESP32/AGENTS.md)**（当前文件）：确立安全红线与编译规则。
 2. **[`DEVELOPER_GUIDE.md`](file:///Users/matnoble/Codes/ESP32/DEVELOPER_GUIDE.md)**：包含原理图级引脚定义、双端口切换逻辑、避坑清单及故障树。
 3. **[`HARDWARE_SPEC.md`](file:///Users/matnoble/Codes/ESP32/HARDWARE_SPEC.md)**：包含芯片 VID:PID、物理尺寸、稳压电路及元器件选型详情。
-4. **[`hardware_docs/`](file:///Users/matnoble/Codes/ESP32/hardware_docs)**：包含硬件厂商 PDF 原理图（`ESP32-S3-SCH-V1.4.pdf`）与机械尺寸图。
+4. **`hardware_docs/`（未纳入 git，仅本地保留）**：包含硬件厂商 PDF 原理图（`ESP32-S3-SCH-V1.4.pdf`）与机械尺寸图，属厂商版权资料。
 
 ---
 
@@ -67,8 +67,9 @@ board_build.arduino.memory_type = dio_opi
 build_flags = 
     -DBOARD_HAS_PSRAM
 ```
-* **禁止将 `flash_mode` 设为 `qio`**（芯片 BootROM 锁定 `DIO`，设为 `qio` 会导致启动在 `entry 0x...` 瞬间死锁）。
+* **禁止将 `flash_mode` 设为 `qio`**（本板实测 Flash 仅能以 `DIO` 时序访问，设为 `qio` 会导致启动在 `entry 0x...` 瞬间死锁）。
 * **禁止遗漏 `memory_type = dio_opi`**（默认 4 线 QSPI 会导致 8 线物理 PSRAM 握手失败，使 `psramFound() == false`）。
+* 本四件套的权威定义位于 `HARDWARE_SPEC.md` §3，各文档如有出入，以该处为准。
 
 ---
 
@@ -76,8 +77,8 @@ build_flags =
 
 | 物理端口 | 对应工程模板 | 端口宏定义原则 | 复位机制与烧录行为 |
 | :--- | :--- | :--- | :--- |
-| **右侧 UART 接口**<br>(CH343P 芯片) | [`00_hello_world_uart`](file:///Users/matnoble/Codes/ESP32/00_hello_world_uart) | **严禁**添加 `-DARDUINO_USB_CDC_ON_BOOT=1`<br>日志走硬件串口 0 | 原理图内嵌 Q1/Q2 双三极管电路；**100% 自动复位**，开箱即用 |
-| **左侧 USB 接口**<br>(原生 USB CDC/JTAG) | [`01_hello_world_usb`](file:///Users/matnoble/Codes/ESP32/01_hello_world_usb) | **必须**定义：<br>`-DARDUINO_USB_CDC_ON_BOOT=1`<br>`-DARDUINO_USB_MODE=1` | 无三极管电路；若烧录后停留在 ROM 下载模式，需**手动按一次板载 RST 键** |
+| **UART 接口**<br>(丝印「UART/COM」，CH343P 芯片) | [`00_hello_world_uart`](file:///Users/matnoble/Codes/ESP32/00_hello_world_uart) | **严禁**添加 `-DARDUINO_USB_CDC_ON_BOOT=1`<br>日志走硬件串口 0 | 原理图内嵌 Q1/Q2 双三极管电路；**100% 自动复位**，开箱即用 |
+| **USB 接口**<br>(丝印「USB」，原生 CDC/JTAG) | [`01_hello_world_usb`](file:///Users/matnoble/Codes/ESP32/01_hello_world_usb) | **必须**定义：<br>`-DARDUINO_USB_CDC_ON_BOOT=1`<br>`-DARDUINO_USB_MODE=1` | 无三极管电路；若烧录后停留在 ROM 下载模式，需**手动按一次板载 RST 键** |
 
 ---
 
@@ -89,8 +90,8 @@ build_flags =
 /Users/matnoble/Codes/ESP32/
 ├── 00_hello_world_uart/     # 串口基准固件 (CH343 控制台 / 硬件探针)
 ├── 01_hello_world_usb/      # 原生 USB 基准固件 (CDC 虚拟串口 / JTAG)
-├── 02_wifi_csi_radar/       # 基于底层 Wi-Fi CSI 物理层的人体无感探测雷达
-├── 03_uav_mavlink/          # 无人机 MAVLink 飞控遥测与地面站仿真
+├── 02_wifi_csi_radar/       # 【规划中，尚未创建】基于底层 Wi-Fi CSI 物理层的人体无感探测雷达
+├── 03_uav_mavlink/          # 【规划中，尚未创建】无人机 MAVLink 飞控遥测与地面站仿真
 └── [xx_project_name]/       # 遵循双位数字递增前缀：XX_功能简述
 ```
 
@@ -119,6 +120,6 @@ Agent 可直接调用项目根目录下的封装脚本执行标准运维：
 # 4. 单独开启 115200 波特率监视器
 ./run.sh monitor
 
-# 5. 清理构建缓存（修改 build_flags 后必须执行）
+# 5. 清理构建缓存（修改 build_flags 后建议执行；PlatformIO 通常能自动检测配置变化并重建）
 pio run -d <project_dir> -t clean
 ```

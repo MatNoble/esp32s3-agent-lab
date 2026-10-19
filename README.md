@@ -17,7 +17,7 @@
 | 硬件维度 | 具体参数与拓扑结构 | 关键配置与注意点 |
 | :--- | :--- | :--- |
 | **主控芯片** | **ESP32-S3** (Xtensa® 32-bit LX7 双核 @ 240MHz, 包含 AI 矢量扩展指令) | 支持高性能 DSP 与边缘机器学习运算 |
-| **片外 Flash** | **16MB** NOR Flash (物理连接双线 SPI，BootROM 锁定 `DIO` 模式) | `board_build.flash_mode = dio`<br>`board_build.partitions = default_16MB.csv` |
+| **片外 Flash** | **16MB** NOR Flash (Quad 器件，实测仅 `DIO` 模式可启动) | `board_build.flash_mode = dio`<br>`board_build.partitions = default_16MB.csv` |
 | **片外 PSRAM** | **8MB** 高速 Pseudo-SRAM (**OPI** 八线并行总线，支持双沿 DDR 传输) | `board_build.arduino.memory_type = dio_opi`<br>`build_flags = -DBOARD_HAS_PSRAM` |
 | **UART 接口** | 板载 **CH343P** 硬件 USB 转串口芯片，连接至 `GPIO 43/44` | 原理图内嵌 Q1/Q2 双三极管自动下载电路，烧录**100% 自动复位** |
 | **原生 USB 接口** | SoC 原生 USB OTG / CDC 差分直连（`GPIO 19/20`） | 硬件 USB CDC + JTAG 调试器合一，支持超高速数据吞吐 |
@@ -33,11 +33,11 @@
 ```text
 /Users/matnoble/Codes/ESP32/
 ├── README.md                   # 本文件（项目主页与快速上手）
-├── AGENT.md                    # AI Coding Agent 核心行为守则与安全红线
+├── AGENTS.md                   # AI Coding Agent 核心行为守则与安全红线
 ├── DEVELOPER_GUIDE.md          # 深度实战开发指南、引脚详表与故障排查树
 ├── HARDWARE_SPEC.md            # 电路原理图精细解析与硬件参数规格书
 ├── run.sh                      # 一键式编译、烧录、端口探测与监视脚本
-├── hardware_docs/              # 硬件厂商原始技术文档（电路图 PDF、机械尺寸）
+├── hardware_docs/              # 硬件厂商原始技术文档（未入库，仅本地保留）
 │
 ├── 00_hello_world_uart/        # 【基准工程 1】CH343 硬件串口工程（日常主力）
 │   ├── platformio.ini          # 纯净硬件 UART0 (GPIO 43/44) 配置
@@ -68,8 +68,12 @@ pio --version
 ```bash
 ./run.sh list
 ```
-* 若插在 **UART** 口：输出形如 `/dev/cu.usbmodem5D2F*` 或 `/dev/cu.wchusbserial*`
-* 若插在 **USB** 口：输出形如 `/dev/cu.usbmodem84C7BB7AC2D41`（携带芯片 MAC 地址）
+> ⚠️ `/dev/cu.*` 的端口名由 macOS 自动分配（可能是 `usbmodem101` 这类位置名，也可能含芯片 MAC），**不能作为判别端口的依据**。请用下面的命令看 VID:PID：
+```bash
+pio device list
+```
+* `VID:PID=1A86:*` → **UART 口**（板载 CH343P 串口芯片）
+* `VID:PID=303A:1001` → **USB 口**（ESP32-S3 原生 JTAG/Serial 单元）
 
 ### 3. 一键编译、烧录与监视
 使用根目录提供的自动化运维脚本：
@@ -97,10 +101,10 @@ pio --version
 
 为了避免开发过程中的信息遗漏与硬件损坏，请遵循以下查阅路径：
 
-1. **[`AGENT.md`](file:///Users/matnoble/Codes/ESP32/AGENT.md)**：面向 AI 编程智能体，详细阐述硬件不可动引脚、存储配置公式及安全避坑红线。
+1. **[`AGENTS.md`](file:///Users/matnoble/Codes/ESP32/AGENTS.md)**：面向 AI 编程智能体，详细阐述硬件不可动引脚、存储配置公式及安全避坑红线。
 2. **[`DEVELOPER_GUIDE.md`](file:///Users/matnoble/Codes/ESP32/DEVELOPER_GUIDE.md)**：面向开发者与 Agent 的实操指南，收录 44 引脚完整推荐分配表、双接口黄金配置对比及故障自愈清单。
 3. **[`HARDWARE_SPEC.md`](file:///Users/matnoble/Codes/ESP32/HARDWARE_SPEC.md)**：硬件工程师视角参数手册，包含原理图各功能单元标注、CJ6107A 稳压特性与尺寸图解。
-4. **[`hardware_docs/`](file:///Users/matnoble/Codes/ESP32/hardware_docs)**：包含原理图 `ESP32-S3-SCH-V1.4.pdf` 与标准尺寸 CAD 图。
+4. **`hardware_docs/`（未入库，仅本地保留）**：包含原理图 `ESP32-S3-SCH-V1.4.pdf` 与标准尺寸 CAD 图，属厂商版权资料。
 
 ---
 

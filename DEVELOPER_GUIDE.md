@@ -55,12 +55,14 @@ build_flags =
     -DBOARD_HAS_PSRAM
 ```
 
+> 本四件套的权威定义位于 `HARDWARE_SPEC.md` §3，各文档如有出入以该处为准。
+
 #### 什么是 `board_build.arduino.memory_type = dio_opi`？
 该配置项决定了引导程序与硬件总线的物理线缆连接协议，由下划线分隔两部分：
 * **前半段 `dio`（Dual I/O SPI，2 根数据线）**：
-  * 对应板载 **16MB Flash**。硬件 ROM 开机日志明确锁定 `mode:DIO, clock div:1`。若误设为 `qio`（4 线），引导程序访问未连接的引脚会在 `entry` 瞬间卡死。
+  * 对应板载 **16MB Flash**。ROM 开机日志实测显示 `mode:DIO, clock div:1`，即本板仅 DIO 时序可正常访问。若误设为 `qio`（4 线），引导程序会在 `entry` 瞬间卡死。
 * **后半段 `opi`（Octal Peripheral Interface，8 根数据线）**：
-  * 对应芯片内嵌的 **8MB 高速 PSRAM**。R8 规格采用的是八线制并行总线（D0~D7，支持高速 DDR 双沿传输）。
+  * 对应模组内置的 **8MB 高速 PSRAM**（N16R8 中的 R8 规格）。采用八线制并行总线（D0~D7，支持高速 DDR 双沿传输）。
 * **避坑防呆**：
   * 板型默认采用 `qspi`（4 线模式）。若不显式指定为 `opi`，底层驱动会用 4 线协议与 8 线物理硬件握手，握手超时失败导致 **`psramFound()` 永远返回 `false`**（8MB 大内存直接隐身失效）。
 
@@ -76,7 +78,7 @@ build_flags =
 ├── HARDWARE_SPEC.md            # 硬件规格与系统架构特性文档（供查阅或喂给 Agent）
 ├── DEVELOPER_GUIDE.md          # 本开发指南（AI Agent 与开发者首要读取文档）
 ├── run.sh                      # 一键自动化构建、烧录与监视运维脚本
-├── hardware_docs/              # 官方解压资料（含 SCH V1.4 原理图、引脚尺寸 PDF）
+├── hardware_docs/              # 官方解压资料（未入库，仅本地保留）
 │
 ├── 00_hello_world_uart/        # 【基准工程 1】CH343 硬件串口工程（日常稳定主力）
 │   ├── platformio.ini          # 纯净硬件 UART0 (GPIO43/44) 配置
@@ -101,7 +103,7 @@ build_flags =
 
 ### 场景 A：插在标有「UART / COM」的接口 (CH343 芯片)
 * **对应工程**：[`00_hello_world_uart`](file:///Users/matnoble/Codes/ESP32/00_hello_world_uart)
-* **设备特征**：Mac 识别为 `/dev/cu.usbmodem5D2F*` 或 `/dev/cu.wchusbserial*`
+* **设备特征**：`pio device list` 显示 `VID:PID=1A86:*`（`/dev/cu.*` 端口名由 macOS 分配，不作判别依据）
 * **硬件机制**：原理图内嵌 **Q1/Q2 (SS8050-G) 双三极管自动下载电路**，由 DTR/RTS 控制复位，烧录完成百分之百自动重启，**绝不掉线**。
 * **PlatformIO 黄金配置法则**：
   * **严禁**添加 `-DARDUINO_USB_CDC_ON_BOOT=1`（否则日志会被劫持至虚空的原生 USB）。
@@ -116,7 +118,7 @@ build_flags =
 
 ### 场景 B：插在标有「USB」的接口 (ESP32-S3 原生 USB)
 * **对应工程**：[`01_hello_world_usb`](file:///Users/matnoble/Codes/ESP32/01_hello_world_usb)
-* **设备特征**：识别为带有芯片 MAC 地址的设备，如 `/dev/cu.usbmodem84C7BB7AC2D41`
+* **设备特征**：`pio device list` 显示 `VID:PID=303A:1001`（USB 序列号即芯片 MAC；端口名不作判别依据）
 * **硬件机制**：DP/DN 差分引脚直通芯片内部（GPIO 19/20），无三极管复位控制。烧录后若停在 ROM 下载等待模式，需轻按一下单片机上的物理 `RST` 键。
 * **PlatformIO 黄金配置法则**：
   * 必须配置 N16R8 总线：`board_build.flash_mode = dio` 与 `board_build.arduino.memory_type = dio_opi`。
@@ -140,7 +142,7 @@ build_flags =
 | **一键运行 UART 项目** | `./run.sh uart` | 自动完成编译、烧录并开启 115200 监视 |
 | **一键运行 USB 项目** | `./run.sh usb` | 自动完成编译、烧录并开启 115200 监视 |
 | **仅编译代码** | `pio run` | 验证语法与依赖，不连接单片机 |
-| **全量清理重新构建** | `pio run -t clean && pio run` | 修改了 `build_flags` 宏定义后的必做操作 |
+| **全量清理重新构建** | `pio run -t clean && pio run` | 修改 `build_flags` 后建议执行（PlatformIO 通常能自动检测变化并重建） |
 | **强制指定端口烧录** | `pio run -t upload --upload-port /dev/cu.xxx` | 多设备连接时防烧错目标 |
 | **直接打开监视器** | `pio device monitor -b 115200` | 锁定 115200 速率防乱码 |
 | **检查当前连接的端口** | `./run.sh list` | 快速查看当前单片机端口名 |
