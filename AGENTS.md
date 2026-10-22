@@ -37,6 +37,7 @@
 2. **[`DEVELOPER_GUIDE.md`](file:///Users/matnoble/Codes/ESP32/DEVELOPER_GUIDE.md)**：包含原理图级引脚定义、双端口切换逻辑、避坑清单及故障树。
 3. **[`HARDWARE_SPEC.md`](file:///Users/matnoble/Codes/ESP32/HARDWARE_SPEC.md)**：包含芯片 VID:PID、物理尺寸、稳压电路及元器件选型详情。
 4. **`hardware_docs/`（未纳入 git，仅本地保留）**：包含硬件厂商 PDF 原理图（`ESP32-S3-SCH-V1.4.pdf`）与机械尺寸图，属厂商版权资料。
+5. **遥测契约（外部权威文档）**：`/Users/matnoble/Documents/JG/11 科研/校级孵化项目/02 无人机-低空经济/遥测契约/遥测数据格式说明.md`——04 上云报文 14 键格式与 null 规则的唯一仲裁标准（同目录含 JSON Schema 与校验器）。
 
 ---
 
@@ -46,6 +47,9 @@
 * **`GPIO 43 / 44`**：板载 CH343P 串口专用（U0TXD / U0RXD）。严禁将其重映射为普通 GPIO 或挂载其他传感器。
 * **`GPIO 19 / 20`**：原生 USB 差分数据线（D- / D+）。使用原生 USB 通道通信时禁止改作他用。
 * **`GPIO 0`**：芯片 Strapping 引脚 / BOOT 按键。开机瞬间必须保持高电平以进入正常运行状态。
+* **`GPIO 3 / 45 / 46`**：Strapping 配置脚。外接器件前必须核对上电电平影响，能不用就不用。
+* **`GPIO 26–32`**：Flash/PSRAM 内部总线，未引出排针，天然不可用。
+* ⚠️ **本板排布与 Espressif 官方 DevKitC-1 通用图不同**（46 已引出、TX/RX 位于左排顶部、右排末端有 19/20 等）。引脚物理位置的**唯一权威 = `DEVELOPER_GUIDE.md` §1.2 定稿表**（依据 `hardware_docs/ESP32-S3-SCH-V1.4.pdf` 原理图逐脚核对）。禁止照搬网络通用引脚图。
 * **`CHIP_PU`**：硬件复位引脚（EN）。
 
 ### 3.2 板载 WS2812B 彩灯防护（GPIO 48）
@@ -71,6 +75,24 @@ build_flags =
 * **禁止遗漏 `memory_type = dio_opi`**（默认 4 线 QSPI 会导致 8 线物理 PSRAM 握手失败，使 `psramFound() == false`）。
 * 本四件套的权威定义位于 `HARDWARE_SPEC.md` §3，各文档如有出入，以该处为准。
 
+### 3.4 I2C 总线定脚与器件地址（外设红线）
+* **SDA = GPIO 8，SCL = GPIO 9**，全部外设共享同一条总线；新工程一律复用定脚，禁止另选引脚。
+* 器件地址注册表（验证手段 = 05/06 工程的开机总线扫描）：
+
+| 器件 | 地址 | 状态 |
+|------|------|------|
+| MPU6050（GY-521） | 0x68（AD0 拉高时 0x69） | 已接入（04/06） |
+| BME280 | 0x76（SDO 拉高时 0x77） | 已接入（04/05/06） |
+| OLED 0.96" SSD1306 | 0x3C（个别模块 0x3D） | 已接入（04/06） |
+| INA219 | 0x40 | 待到货 |
+
+* MPU6050 使用**裸寄存器驱动**（04/06 已有资产：唤醒 0x6B、量程 0x1C/0x1B、连续读 14 字节 @0x3B），不使用第三方库——对国产兼容芯免疫且不卡 WHO_AM_I 校验；新增 I2C 器件优先参考此模式。
+
+### 3.5 供电红线
+* 3V3 轨由板载 LDO 供给（上限 ~500mA），I2C 外设一律从 3V3 取电；大功率器件才允许走 5V 轨。
+* **锂电池（标称 3.7V）严禁直连 3V3 引脚**——超过 BME280 等器件 3.6V 上限会烧毁；须经 TP4056+升压板升至 5V，从 5V 引脚或 USB 口馈入。
+* 脱机部署形态：充电头/充电宝插「UART/COM」口即可——程序存于板载 Flash，断电不丢、上电自启，电脑仅烧录与看日志时需要。
+
 ---
 
 ## 4. 双 Type-C 端口架构与构建规范
@@ -84,7 +106,7 @@ build_flags =
 
 ## 5. 项目工程组织与命名约定
 
-每个子工程保持完全独立、自治，便于复用与隔离：
+每个子工程保持完全独立、自治，便于复用与隔离。工程分两轨：**台架轨**（05/06，无 WiFi/MQTT，专门验证传感器，不上云）与**上云轨**（04，唯一对外发遥测的节点——看板/数据库只认 04 的数据流）：
 
 ```text
 /Users/matnoble/Codes/ESP32/
@@ -92,6 +114,9 @@ build_flags =
 ├── 01_hello_world_usb/      # 原生 USB 基准固件 (CDC 虚拟串口 / JTAG)
 ├── 02_wifi_csi_radar/       # 【规划中，尚未创建】基于底层 Wi-Fi CSI 物理层的人体无感探测雷达
 ├── 03_uav_mavlink/          # 【规划中，尚未创建】无人机 MAVLink 飞控遥测与地面站仿真
+├── 04_uav_telemetry_mqtt/   # 【上云轨】契约 v1.0 遥测节点 UAV-LAB-01（fw 0.6.0：BME280 alt + MPU6050 roll/pitch + OLED 状态屏 + MQTT 上云）
+├── 05_i2c_bme280/           # 【台架轨】I2C 总线扫描 + BME280 读数 + 真芯判别（ID 0x60 正品 / 0x58 假芯）
+├── 06_i2c_sensor_suite/     # 【台架轨】三器件共线首发：MPU6050 裸寄存器驱动 + OLED 点亮（INA219 到货挂 0x40 即四件套）
 └── [xx_project_name]/       # 遵循双位数字递增前缀：XX_功能简述
 ```
 
@@ -99,7 +124,9 @@ build_flags =
 1. 复制基准工程的 `platformio.ini`（根据目标接口选择以 UART 还是 USB 为底座）。
 2. 核对并锁定 N16R8 四件套（`flash_mode = dio`、`dio_opi`、`default_16MB.csv`、`-DBOARD_HAS_PSRAM`）。
 3. 遵循淡光微亮 RGB 控制规范（GPIO 48，数值 ≤ 4）。
-4. 在 [`run.sh`](file:///Users/matnoble/Codes/ESP32/run.sh) 中注册快捷调用命令。
+4. 涉及 I2C 外设：沿用 §3.4 定脚（SDA=8/SCL=9）与器件地址表，驱动参考 06 的裸寄存器模式。
+5. 涉及 MQTT 上云：报文必须满足遥测契约（§2 第 5 条，14 键齐全、无传感器报 null），凭据放 `src/wifi_secrets.h`（已 gitignore，模板 = `wifi_secrets.example.h`）。
+6. 在 [`run.sh`](file:///Users/matnoble/Codes/ESP32/run.sh) 中注册快捷调用命令。
 
 ---
 
@@ -117,9 +144,18 @@ Agent 可直接调用项目根目录下的封装脚本执行标准运维：
 # 3. 编译并烧录 原生 USB 工程（带自动监视）
 ./run.sh usb
 
-# 4. 单独开启 115200 波特率监视器
+# 4. 编译并烧录 04 遥测节点（上云轨，fw 0.6.0）
+./run.sh telemetry
+
+# 5. 编译并烧录 05 BME280 台架（I2C 扫描 + 真芯判别）
+./run.sh bme
+
+# 6. 编译并烧录 06 三传感器台架（共线首发）
+./run.sh sensors
+
+# 7. 单独开启 115200 波特率监视器
 ./run.sh monitor
 
-# 5. 清理构建缓存（修改 build_flags 后建议执行；PlatformIO 通常能自动检测配置变化并重建）
+# 8. 清理构建缓存（修改 build_flags 后建议执行；PlatformIO 通常能自动检测配置变化并重建）
 pio run -d <project_dir> -t clean
 ```

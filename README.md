@@ -47,6 +47,10 @@
 │   ├── platformio.ini          # 原生 USB CDC (JTAG/Serial debug unit) 专用配置
 │   └── src/main.cpp            # 原生 USB 流 + 非阻塞心跳 + 淡冰蓝指示灯
 │
+├── 04_uav_telemetry_mqtt/      # 【已创建】契约 v1.0 MQTT 遥测上云节点（UAV-LAB-01）
+├── 05_i2c_bme280/              # 【已创建】I2C 扫描 + BME280 温/压/湿/气压高度（首个外设传感器）
+├── 06_i2c_sensor_suite/        # 【已创建】BME280+MPU6050+OLED 三器件共线首发（裸寄存器 MPU 驱动）
+│
 └── [后续科研规划里程碑]/
     ├── 02_wifi_csi_radar/      # 基于底层 Wi-Fi CSI 的室内无感人体呼吸与移动雷达
     └── 03_uav_mavlink/         # 无人机 MAVLink 飞控遥测仿真与双向通信链路

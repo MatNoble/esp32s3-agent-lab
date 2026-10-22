@@ -12,3 +12,6 @@ compile_commands.json
 
 # 厂商资料目录整体不入库（版权归属乐鑫/沁恒等厂商且体积大；本地保留，可从官方渠道重新获取）
 hardware_docs/
+
+# 真实 WiFi/MQTT 凭据不入库（各工程用 wifi_secrets.example.h 作模板）
+**/src/wifi_secrets.h

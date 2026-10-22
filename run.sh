@@ -2,10 +2,13 @@
 
 # ESP32-S3 一键编译与烧录快捷脚本
 # 用法:
-#   ./run.sh uart     - 编译、烧录并监视 00_hello_world_uart (CH343 硬件串口)
-#   ./run.sh usb      - 编译、烧录并监视 01_hello_world_usb  (原生 USB 端口)
-#   ./run.sh monitor  - 直接自动查找并打开串口监视器
-#   ./run.sh list     - 列出当前 Mac 连接的所有串口设备
+#   ./run.sh uart      - 编译、烧录并监视 00_hello_world_uart (CH343 硬件串口)
+#   ./run.sh usb       - 编译、烧录并监视 01_hello_world_usb  (原生 USB 端口)
+#   ./run.sh telemetry - 编译、烧录并监视 04_uav_telemetry_mqtt (契约 v1.0 上云节点)
+#   ./run.sh bme       - 编译、烧录并监视 05_i2c_bme280 (I2C 扫描 + BME280 读数)
+#   ./run.sh sensors   - 编译、烧录并监视 06_i2c_sensor_suite (三传感器共线首发)
+#   ./run.sh monitor   - 直接自动查找并打开串口监视器
+#   ./run.sh list      - 列出当前 Mac 连接的所有串口设备
 
 set -e
 
@@ -31,6 +34,36 @@ case "$TARGET" in
     echo "🚀 正在编译并烧录: 01_hello_world_usb (原生 USB 端口)..."
     echo "=========================================="
     cd "$WORKSPACE_ROOT/01_hello_world_usb"
+    pio run -t upload
+    echo "💡 烧录完成，正在打开串口监视 (按 Ctrl+C 退出)..."
+    pio device monitor
+    ;;
+
+  telemetry|04|tmqtt)
+    echo "=========================================="
+    echo "🛰️  正在编译并烧录: 04_uav_telemetry_mqtt (契约 v1.0 上云节点)..."
+    echo "=========================================="
+    cd "$WORKSPACE_ROOT/04_uav_telemetry_mqtt"
+    pio run -t upload
+    echo "💡 烧录完成，正在打开串口监视 (按 Ctrl+C 退出)..."
+    pio device monitor
+    ;;
+
+  bme|05)
+    echo "=========================================="
+    echo "🌡️  正在编译并烧录: 05_i2c_bme280 (I2C 扫描 + BME280 读数)..."
+    echo "=========================================="
+    cd "$WORKSPACE_ROOT/05_i2c_bme280"
+    pio run -t upload
+    echo "💡 烧录完成，正在打开串口监视 (按 Ctrl+C 退出)..."
+    pio device monitor
+    ;;
+
+  sensors|06|suite)
+    echo "=========================================="
+    echo "🧩  正在编译并烧录: 06_i2c_sensor_suite (三传感器共线首发)..."
+    echo "=========================================="
+    cd "$WORKSPACE_ROOT/06_i2c_sensor_suite"
     pio run -t upload
     echo "💡 烧录完成，正在打开串口监视 (按 Ctrl+C 退出)..."
     pio device monitor
@@ -63,9 +96,12 @@ case "$TARGET" in
   *)
     echo "ESP32-S3 便捷开发助手"
     echo "用法:"
-    echo "  ./run.sh uart     - 编译、烧录并监听 00_hello_world_uart (CH343 串口)"
-    echo "  ./run.sh usb      - 编译、烧录并监听 01_hello_world_usb  (原生 USB 端口)"
-    echo "  ./run.sh monitor  - 快速打开 115200 串口监视器"
-    echo "  ./run.sh list     - 检查当前连接的端口名称"
+    echo "  ./run.sh uart      - 编译、烧录并监听 00_hello_world_uart (CH343 串口)"
+    echo "  ./run.sh usb       - 编译、烧录并监听 01_hello_world_usb  (原生 USB 端口)"
+    echo "  ./run.sh telemetry - 编译、烧录并监听 04_uav_telemetry_mqtt (契约 v1.0 上云节点)"
+    echo "  ./run.sh bme       - 编译、烧录并监听 05_i2c_bme280 (I2C 扫描 + BME280 读数)"
+    echo "  ./run.sh sensors   - 编译、烧录并监听 06_i2c_sensor_suite (三传感器共线首发)"
+    echo "  ./run.sh monitor   - 快速打开 115200 串口监视器"
+    echo "  ./run.sh list      - 检查当前连接的端口名称"
     ;;
 esac
