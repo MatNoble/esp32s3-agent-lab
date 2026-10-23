@@ -86,7 +86,9 @@ build_flags =
 | OLED 0.96" SSD1306 | 0x3C（个别模块 0x3D） | 已接入（04/06） |
 | INA219 | 0x40 | 待到货 |
 
-* MPU6050 使用**裸寄存器驱动**（04/06 已有资产：唤醒 0x6B、量程 0x1C/0x1B、连续读 14 字节 @0x3B），不使用第三方库——对国产兼容芯免疫且不卡 WHO_AM_I 校验；新增 I2C 器件优先参考此模式。
+* MPU6050 使用**裸寄存器驱动**（04/06 已有资产：唤醒 0x6B、量程 0x1C/0x1B、DLPF 低通 0x1A←3=44Hz〔静噪关键，默认 0=关闭〕、连续读 14 字节 @0x3B；BME280 同理开 IIR FILTER_X16），不使用第三方库——对国产兼容芯免疫且不卡 WHO_AM_I 校验；新增 I2C 器件优先参考此模式。
+* **接线唯一权威图**：`04_uav_telemetry_mqtt/docs/circuit-uav-lab-01.svg`（论文级电路连接图：实线 = 已接调试通过，虚线 = INA219 / NEO-7M 到货后的预留）。新器件先对上方地址表、再对图接线；器件到货接线后把对应虚线转实线出一版新图。
+* **实测静止基线（2026-10-23，fw 0.7.2 桌面实测，判断传感器健康用）**：roll/pitch 抖动 std ≈ 0.1°（静止读数本身 = 桌面真实倾角，非噪声）；alt 逐点抖动 std ≈ 7 cm；rssi 波动 ±8 dB 内。几分钟尺度的 alt 慢漂移属气压固有现象——室内机械排风（油烟机/新风）曾致 alt 单调"爬升"3 m 而姿态纹丝不动：**判板子是否位移看 roll/pitch，勿只看 alt**。另注意看板三图纵轴为自适应 min/max 铺满面板，波动的视觉幅度 ≠ 真实幅度，比较以轴刻度为准。
 
 ### 3.5 供电红线
 * 3V3 轨由板载 LDO 供给（上限 ~500mA），I2C 外设一律从 3V3 取电；大功率器件才允许走 5V 轨。
@@ -114,7 +116,7 @@ build_flags =
 ├── 01_hello_world_usb/      # 原生 USB 基准固件 (CDC 虚拟串口 / JTAG)
 ├── 02_wifi_csi_radar/       # 【规划中，尚未创建】基于底层 Wi-Fi CSI 物理层的人体无感探测雷达
 ├── 03_uav_mavlink/          # 【规划中，尚未创建】无人机 MAVLink 飞控遥测与地面站仿真
-├── 04_uav_telemetry_mqtt/   # 【上云轨】契约 v1.0 遥测节点 UAV-LAB-01（fw 0.6.0：BME280 alt + MPU6050 roll/pitch + OLED 状态屏 + MQTT 上云）
+├── 04_uav_telemetry_mqtt/   # 【上云轨】契约 v1.0 遥测节点 UAV-LAB-01（fw 0.7.2：BME280 alt + MPU6050 roll/pitch + OLED 状态屏 + MQTT 上云 + WiFi 粗定位 + SoftAP 配网零烧录）
 ├── 05_i2c_bme280/           # 【台架轨】I2C 总线扫描 + BME280 读数 + 真芯判别（ID 0x60 正品 / 0x58 假芯）
 ├── 06_i2c_sensor_suite/     # 【台架轨】三器件共线首发：MPU6050 裸寄存器驱动 + OLED 点亮（INA219 到货挂 0x40 即四件套）
 └── [xx_project_name]/       # 遵循双位数字递增前缀：XX_功能简述
@@ -125,7 +127,7 @@ build_flags =
 2. 核对并锁定 N16R8 四件套（`flash_mode = dio`、`dio_opi`、`default_16MB.csv`、`-DBOARD_HAS_PSRAM`）。
 3. 遵循淡光微亮 RGB 控制规范（GPIO 48，数值 ≤ 4）。
 4. 涉及 I2C 外设：沿用 §3.4 定脚（SDA=8/SCL=9）与器件地址表，驱动参考 06 的裸寄存器模式。
-5. 涉及 MQTT 上云：报文必须满足遥测契约（§2 第 5 条，14 键齐全、无传感器报 null），凭据放 `src/wifi_secrets.h`（已 gitignore，模板 = `wifi_secrets.example.h`）。
+5. 涉及 MQTT 上云：报文必须满足遥测契约（§2 第 5 条，14 键齐全、无传感器报 null），凭据放 `src/wifi_secrets.h`（已 gitignore，模板 = `wifi_secrets.example.h`）。**fw 0.7.0 起该文件仅为出厂默认值**：连接类配置（WiFi/broker 地址端口）实际存 NVS，换网/换 broker 走 SoftAP 配网热点 `UAV-LAB-01-Setup`（连不上网 45s 自动开，或按住 BOOT 键上电强制开），broker 地址支持 mDNS 主机名（本实验室 Pi = `pi-matnoble.local`，avahi 应答）——不再需要重烧。WiFi 粗定位查表在 `04 src/wifi_pos_private.h`（BSSID→WGS-84 坐标，已 gitignore 不入库、模板 = `wifi_pos_private.example.h`，缺文件编译为空表→报 null；同名 SSID 的多台物理 AP 每台一行）。
 6. 在 [`run.sh`](file:///Users/matnoble/Codes/ESP32/run.sh) 中注册快捷调用命令。
 
 ---
@@ -144,7 +146,7 @@ Agent 可直接调用项目根目录下的封装脚本执行标准运维：
 # 3. 编译并烧录 原生 USB 工程（带自动监视）
 ./run.sh usb
 
-# 4. 编译并烧录 04 遥测节点（上云轨，fw 0.6.0）
+# 4. 编译并烧录 04 遥测节点（上云轨，fw 0.7.2）
 ./run.sh telemetry
 
 # 5. 编译并烧录 05 BME280 台架（I2C 扫描 + 真芯判别）

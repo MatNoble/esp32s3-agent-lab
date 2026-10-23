@@ -1,4 +1,6 @@
 # 06_i2c_sensor_suite — 三传感器共线首发（BME280 + MPU6050 + OLED）
+> 电路连接图见 [`../04_uav_telemetry_mqtt/docs/circuit-uav-lab-01.svg`](../04_uav_telemetry_mqtt/docs/circuit-uav-lab-01.svg)（本工程 = 图中实线部分：ESP32-S3 + BME280 + MPU6050 + OLED 同一条 I2C 总线）。
+
 
 自费玩一套的核心预演：**一条 I2C 总线挂全部传感器**——这就是 04 遥测节点的最终形态。
 INA219（0x40）到货后挂上第 4 个地址，即为完整四件套。

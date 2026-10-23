@@ -8,6 +8,10 @@
 #include <Adafruit_BME280.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Preferences.h>   // NVS：连接类配置存 flash 分区，改网不再重烧（重烧固件也不丢）
+#include <WebServer.h>     // SoftAP 配网门户
+#include <DNSServer.h>     // 配网热点的 captive portal DNS
+#include <ESPmDNS.h>       // 解析 pi-matnoble.local 这类 .local 主机名
 
 #include "config.h"
 
@@ -33,6 +37,7 @@ float altBase = 0.0f;   // 上电零点基线：契约 §2 规定 alt 为"相对
 #define MPU_PWR_MGMT  0x6B   // 上电处于睡眠态，写 0 唤醒
 #define MPU_ACCEL_CFG 0x1C   // 写 0 = 量程 ±2g
 #define MPU_GYRO_CFG  0x1B   // 写 0 = 量程 ±250°/s
+#define MPU_DLPF      0x1A   // 数字低通：写 3 = 加速度 44Hz / 陀螺 42Hz（默认 0=关闭，桌面微振动全透）
 #define MPU_DATA      0x3B   // 测量数据首地址：ax ay az temp gx gy gz（大端 16 位 ×7）
 
 Adafruit_SSD1306 oled(128, 64, &Wire, -1);   // 本机状态屏（不上云，仅现场排障用）
@@ -70,25 +75,176 @@ static void led(uint8_t r, uint8_t g, uint8_t b) { rgbLedWrite(RGB_BUILTIN, r, g
 // NTP 对上之后系统钟才是有效 Unix 时间（门槛取 2023-11 之后任意时刻）
 static bool timeSynced() { return time(nullptr) > 1700000000; }
 
+// —— 运行期配置 + SoftAP 配网（fw 0.7.0）：换 WiFi / 换 broker 不再需要重烧 ——
+// 连接类配置存 NVS（flash 分区，普通重烧固件不丢）；NVS 为空时用 wifi_secrets.h 出厂值播种。
+// WiFi 连不上且开机 45s 后自动开配网热点 "UAV-LAB-01-Setup"（无密码）；手机连上自动弹配网页
+// （或浏览器访问 http://192.168.4.1/），保存后设备自动重启。开机时按住 BOOT 键可无条件强制进入。
+// broker 地址支持 IP 或 mDNS 主机名（本实验室 Pi = pi-matnoble.local）。
+Preferences prefs;
+struct NodeCfg { String ssid, pass, mqttHost; uint16_t mqttPort; } cfg;
+static bool portalOn = false, forcePortal = false;
+static WebServer *portal = nullptr;
+static DNSServer  *portalDns = nullptr;
+
+static void cfgSave() {
+    prefs.putString("ssid", cfg.ssid);
+    prefs.putString("pass", cfg.pass);
+    prefs.putString("mhost", cfg.mqttHost);
+    prefs.putUShort("mport", cfg.mqttPort);
+}
+
+static void cfgLoad() {
+    cfg.mqttHost = prefs.getString("mhost", MQTT_HOST);
+    cfg.mqttPort = prefs.getUShort("mport", MQTT_PORT);
+    cfg.ssid     = prefs.getString("ssid", "");
+    cfg.pass     = prefs.getString("pass", "");
+    if (cfg.ssid.isEmpty()) {   // 首次上电（或整片擦除后）：出厂默认播种并落 NVS
+        cfg.ssid = WIFI_SSID;
+        cfg.pass = WIFI_PASS;
+        cfgSave();
+        Serial.println("[CFG] NVS 为空 → 已按出厂默认播种（wifi_secrets.h）");
+    }
+}
+
+static void handleSave() {
+    String s = portal->arg("s"), p = portal->arg("p"), h = portal->arg("h"), o = portal->arg("o");
+    if (!s.length()) { portal->send(400, "text/plain; charset=utf-8", "WiFi 名称不能为空"); return; }
+    cfg.ssid = s;
+    if (p.length()) cfg.pass = p;                  // 密码留空 = 沿用已存值
+    if (h.length()) cfg.mqttHost = h;
+    cfg.mqttPort = (uint16_t)o.toInt();
+    if (cfg.mqttPort == 0) cfg.mqttPort = 1883;
+    cfgSave();
+    portal->send(200, "text/html; charset=utf-8",
+                 "<!doctype html><meta charset=utf-8>"
+                 "<meta name=viewport content='width=device-width,initial-scale=1'>"
+                 "<body style='font-family:system-ui;text-align:center;padding-top:3em'>"
+                 "<h3>已保存 ✓</h3><p>设备正在重启并连接新网络……<br>此热点即将消失。</p></body>");
+    delay(1500);
+    ESP.restart();
+}
+
+static String scanOptionsHtml() {
+    String out;
+    int n = WiFi.scanComplete();
+    for (int i = 0; i < n && i < 15; i++) {   // 按信号强度给前 15 个候选
+        String s = WiFi.SSID(i);
+        if (s.length()) out += "<option value=\"" + s + "\">" + s + "（" + String(WiFi.RSSI(i)) + " dBm）";
+    }
+    return out;
+}
+
+static void handleRoot() {
+    if (WiFi.scanComplete() == -2) WiFi.scanNetworks(true);   // 尚未扫过 → 异步扫，刷新页面即见候选
+    String page = String("<!doctype html><meta charset=utf-8>") +
+        "<meta name=viewport content='width=device-width,initial-scale=1'>"
+        "<title>" NODE_ID " 配网</title>"
+        "<body style='font-family:system-ui;max-width:26em;margin:2em auto;padding:0 1em'>"
+        "<h3>" NODE_ID " 网络配置</h3>"
+        "<p style='color:#666;margin-top:-8px'>fw " FW_VERSION " · 保存后自动重启</p>"
+        "<form method=POST action=/save style='display:grid;gap:14px'>"
+        "WiFi 名称（可点选扫描结果）<input name=s list=ss required style='padding:8px;font-size:15px'>"
+        "<datalist id=ss>" + scanOptionsHtml() + "</datalist>"
+        "WiFi 密码（留空 = 沿用已存）<input name=p type=password style='padding:8px;font-size:15px'>"
+        "MQTT broker（主机名或 IP）<input name=h value='" + cfg.mqttHost + "' style='padding:8px'>"
+        "MQTT 端口<input name=o value='" + String(cfg.mqttPort) + "' style='padding:8px'>"
+        "<button style='padding:10px;font-size:15px'>保存并重启</button></form></body>";
+    portal->send(200, "text/html; charset=utf-8", page);
+}
+
+static void portalStart() {
+    if (portalOn) return;
+    portalOn = true;
+    WiFi.mode(WIFI_AP_STA);                       // AP 与 STA 并存：配网同时继续尝试原配置
+    WiFi.softAP("UAV-LAB-01-Setup");
+    portalDns = new DNSServer();
+    portalDns->start(53, "*", WiFi.softAPIP());   // 泛域名解析 → 手机连上自动弹配网页
+    portal = new WebServer(80);
+    portal->on("/", handleRoot);
+    portal->on("/save", handleSave);
+    portal->onNotFound([] {
+        portal->sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+        portal->send(302, "text/plain", "");
+    });
+    portal->begin();
+    WiFi.scanNetworks(true);
+    Serial.printf("[PORTAL] 配网热点已开：连 \"UAV-LAB-01-Setup\" → 自动弹页，或浏览器访问 http://%s/\n",
+                  WiFi.softAPIP().toString().c_str());
+}
+
+static void portalLoop() {
+    if (!portalOn) return;
+    portalDns->processNextRequest();
+    portal->handleClient();
+}
+
+static void portalStop() {
+    if (!portalOn) return;
+    portalOn = false;
+    portal->stop();
+    portalDns->stop();
+    delete portal;
+    delete portalDns;
+    portal = nullptr;
+    portalDns = nullptr;
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_STA);            // 关 AP 口、保留 STA 连接
+    Serial.println("[PORTAL] 网络已通，配网热点关闭");
+}
+
+// broker 地址解析：纯 IP 直接用；.local 主机名走 mDNS 查询（Pi 的 avahi 应答），结果缓存 60s
+static IPAddress brokerIP;
+static uint32_t brokerResolvedAt = 0;
+static bool brokerResolve() {
+    if (brokerIP && millis() - brokerResolvedAt < 60000) return true;
+    if (brokerIP.fromString(cfg.mqttHost)) { brokerResolvedAt = millis(); return true; }
+    String name = cfg.mqttHost;
+    if (name.endsWith(".local")) name.remove(name.length() - 6);
+    char nm[64];
+    name.toCharArray(nm, sizeof(nm));
+    IPAddress ip = MDNS.queryHost(nm);
+    if (!ip) {
+        Serial.printf("[MQTT] mDNS 解析 %s 失败，5s 后重试\n", cfg.mqttHost.c_str());
+        return false;
+    }
+    brokerIP = ip;
+    brokerResolvedAt = millis();
+    Serial.printf("[MQTT] %s = %s（mDNS 解析成功）\n", cfg.mqttHost.c_str(), ip.toString().c_str());
+    return true;
+}
+
 static void ensureWiFi() {
     static uint32_t lastTry = 0;
-    // 间隔设为 15s，避免打断 ESP32 底层自动重连 (setAutoReconnect) 的握手进程
-    if (millis() - lastTry < 15000) return;
+    // 底层 setAutoReconnect 的关联握手进行中时绝不打断：disconnect() 会把进度清零，
+    // 旧版 15s 一轮的 disconnect+begin 恰好是首连被拖到 45s 的元凶
+    if (WiFi.status() == WL_IDLE_STATUS) return;
+    if (millis() - lastTry < 30000) return;
     lastTry = millis();
-    Serial.printf("[WiFi] 未连接（%s），正在发起重连 ...\n", WIFI_SSID);
-    WiFi.disconnect();
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    Serial.printf("[WiFi] 未连接（%s），重新发起连接 ...\n", cfg.ssid.c_str());
+    WiFi.begin(cfg.ssid.c_str(), cfg.pass.c_str());   // 不再 disconnect：对进行中的尝试是幂等的
 }
 
 static void ensureMQTT() {
     static uint32_t lastTry = 0;
     if (millis() - lastTry < 5000) return;
     lastTry = millis();
+    if (!brokerResolve()) return;   // 解析失败不打断 5s 节流，下一轮再来
+    mqtt.setServer(brokerIP, cfg.mqttPort);
     if (mqtt.connect(NODE_ID)) {
-        Serial.printf("[MQTT] 已连接 %s:%d\n", MQTT_HOST, MQTT_PORT);
+        Serial.printf("[MQTT] 已连接 %s:%u（%s）\n",
+                      brokerIP.toString().c_str(), (unsigned)cfg.mqttPort, cfg.mqttHost.c_str());
     } else {
         Serial.printf("[MQTT] 连接失败 rc=%d，5s 后重试\n", mqtt.state());
     }
+}
+
+// —— WiFi 粗定位：查当前关联 AP 的 BSSID 是否在 config.h 的表里 ——
+static bool wifiPosLookup(float *lat, float *lon) {
+    String b = WiFi.BSSIDstr();
+    for (auto &e : WIFI_POS_TABLE) {
+        if (e.bssid[0] && b.equalsIgnoreCase(e.bssid)) { *lat = e.lat; *lon = e.lon; return true; }
+    }
+    return false;
 }
 
 // 组包并发布一条契约 v1.0 报文：14 键齐全、紧凑 JSON、≤400 字节
@@ -107,8 +263,9 @@ static bool publishTelemetry() {
     if (!isnan(lastRoll)) { doc["roll"] = lastRoll; doc["pitch"] = lastPitch; }
     else                  { doc["roll"] = nullptr;  doc["pitch"] = nullptr; }
     doc["yaw"] = nullptr;
-    doc["lat"]    = nullptr;   // 无 GPS（NEO-7M 未到）→ null；契约禁止用 0 冒充
-    doc["lon"]    = nullptr;
+    float wlat, wlon;
+    if (wifiPosLookup(&wlat, &wlon)) { doc["lat"] = wlat; doc["lon"] = wlon; }   // WiFi 粗定位兜底（粒度=AP）
+    else { doc["lat"] = nullptr; doc["lon"] = nullptr; }                          // 未知环境/无 GPS → null，不冒充
     if (bmeOk) { lastAlt = bme.readAltitude(SEALEVEL_HPA) - altBase; doc["alt"] = lastAlt; }   // 契约 §2：相对上电零点
     else       { lastAlt = NAN; doc["alt"] = nullptr; }                                        // 未就绪 → null，不冒充
     doc["vbat"]   = nullptr;   // 无 INA219 → null
@@ -135,9 +292,16 @@ void setup() {
     if (bme.begin(0x76) || bme.begin(0x77)) {
         bmeOk = (bme.sensorID() == 0x60);
         if (bmeOk) {
-            // 契约 §2：alt 相对上电零点——开机连采 8 次取均值定基线
+            // 芯片内置 IIR 滤波（默认关闭）：压掉 ±1Pa≈8.5cm 级采样噪声，室内气流/开门不再直接进曲线
+            bme.setSampling(Adafruit_BME280::MODE_NORMAL,
+                            Adafruit_BME280::SAMPLING_X2,    // 温度
+                            Adafruit_BME280::SAMPLING_X16,   // 气压（alt 来源，最高过采样）
+                            Adafruit_BME280::SAMPLING_X1,    // 湿度（暂不上云）
+                            Adafruit_BME280::FILTER_X16,     // 芯片内置 IIR
+                            Adafruit_BME280::STANDBY_MS_0_5);
+            // 契约 §2：alt 相对上电零点——开机连采 8 次取均值定基线（100ms 间隔让 IIR 先收敛）
             float s = 0.0f;
-            for (int i = 0; i < 8; i++) { s += bme.readAltitude(SEALEVEL_HPA); delay(10); }
+            for (int i = 0; i < 8; i++) { s += bme.readAltitude(SEALEVEL_HPA); delay(100); }
             altBase = s / 8.0f;
         }
         Serial.printf("[BME] %s（芯片 ID 0x%02X），alt 按实测上报\n",
@@ -149,7 +313,8 @@ void setup() {
     // —— MPU6050 自举（T1.2）：唤醒 + ±2g/±250dps 量程；失败不阻塞遥测，姿态角回退 null ——
     for (uint8_t a : {(uint8_t)0x68, (uint8_t)0x69}) {
         mpuAddr = a;
-        if (mpuWrite(MPU_PWR_MGMT, 0x00) && mpuWrite(MPU_ACCEL_CFG, 0x00) && mpuWrite(MPU_GYRO_CFG, 0x00)) {
+        if (mpuWrite(MPU_PWR_MGMT, 0x00) && mpuWrite(MPU_ACCEL_CFG, 0x00)
+            && mpuWrite(MPU_GYRO_CFG, 0x00) && mpuWrite(MPU_DLPF, 0x03)) {
             int16_t d[7];
             if (mpuRead14(d)) { mpuOk = true; break; }
         }
@@ -165,18 +330,24 @@ void setup() {
         oled.setTextSize(1);
         oled.setTextColor(SSD1306_WHITE);
         oled.setCursor(0, 0);
-        oled.print("UAV-LAB-01\nfw " FW_VERSION "\nT1.2 MPU+BME+OLED");
+        oled.print("UAV-LAB-01\nfw " FW_VERSION "\nNVS cfg + portal");
         oled.display();
         Serial.println("[OLED] 状态屏就绪");
     } else Serial.println("[OLED] 未找到 → 无状态屏，遥测不受影响");
 
+    // —— 运行期配置：NVS 优先，出厂值播种；BOOT 键按住上电 = 无条件强制配网 ——
+    prefs.begin("uavcfg", false);
+    cfgLoad();
+    pinMode(0, INPUT_PULLUP);
+    forcePortal = (digitalRead(0) == LOW);
+    if (forcePortal) Serial.println("[BOOT] 检测到按住 BOOT 键 → 直接进入配网模式");
+
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     WiFi.setSleep(false);                 // 关调制解调省电，降低遥测抖动
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    WiFi.begin(cfg.ssid.c_str(), cfg.pass.c_str());
 
-    mqtt.setServer(MQTT_HOST, MQTT_PORT);
-    mqtt.setBufferSize(512);
+    mqtt.setBufferSize(512);              // broker 地址由 ensureMQTT 里解析后再 setServer
 
     configTime(0, 0, "ntp1.aliyun.com", "pool.ntp.org");  // 系统钟存 UTC，ts 取真正 Unix 纪元
     setenv("TZ", "CST-8", 1); tzset();                    // 只影响本地显示，不改 time(nullptr)
@@ -193,7 +364,8 @@ static void renderStatus() {
     snprintf(l, sizeof(l), "%s #%06lu", NODE_ID, (unsigned long)seq);
     oled.print(l);
     oled.setCursor(0, 16);
-    if (WiFi.status() != WL_CONNECTED) oled.print("WiFi connecting...");
+    if (portalOn) oled.print("AP Setup 192.168.4.1");
+    else if (WiFi.status() != WL_CONNECTED) oled.print("WiFi connecting...");
     else {
         snprintf(l, sizeof(l), "WiFi %d dBm MQTT%s", WiFi.RSSI(), mqtt.connected() ? " OK" : " --");
         oled.print(l);
@@ -212,6 +384,7 @@ static void renderStatus() {
 void loop() {
     static uint32_t lastPub = 0, lastSense = 0;
     mqtt.loop();
+    portalLoop();
 
     // 2Hz 传感快读 + 状态屏刷新（与 1Hz 上报解耦）
     if (millis() - lastSense >= 500) {
@@ -226,12 +399,29 @@ void loop() {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
+        static bool mdnsUp = false;
+        if (!mdnsUp) mdnsUp = MDNS.begin(NODE_ID);   // 接入网络后初始化 mDNS：查 .local + 通告本机名
+        if (portalOn && !forcePortal) portalStop();  // 网络已通且非 BOOT 强制配网 → 收掉配网热点
         if (!mqtt.connected()) ensureMQTT();
+
+        // WiFi 粗定位引导：每 30s 提示当前 AP 是否在表（采集 BSSID 就看这行日志；带 SSID 便于辨认归属）
+        static uint32_t lastPosLog = 0;
+        if (millis() - lastPosLog > 30000) {
+            lastPosLog = millis();
+            float la, lo;
+            Serial.printf("[WiFiPOS] SSID \"%s\" · AP %s %s\n", WiFi.SSID().c_str(), WiFi.BSSIDstr().c_str(),
+                          wifiPosLookup(&la, &lo) ? "命中粗定位表 → lat/lon 按表上报"
+                                                  : "不在表 → lat/lon 报 null；把该 BSSID+坐标填入 config.h 即可上报粗定位");
+        }
 
         if (millis() - lastPub >= (uint32_t)(1000 / PUB_HZ)) {
             lastPub = millis();
             if (!timeSynced()) {
-                Serial.println("[NTP] 尚未对时，暂缓发布（契约要求 ts 为有效 Unix 毫秒）");
+                static uint32_t lastNtpLog = 0;   // 同一句每秒刷屏太吵，10s 一条
+                if (millis() - lastNtpLog > 10000) {
+                    lastNtpLog = millis();
+                    Serial.println("[NTP] 尚未对时，暂缓发布（契约要求 ts 为有效 Unix 毫秒）");
+                }
             } else if (publishTelemetry()) {
                 Serial.printf("[遥测 #%06lu] seq=%lu 已发布 | rssi=%d dBm | 空闲堆 %lu KB\n",
                               (unsigned long)seq, (unsigned long)seq,
@@ -242,6 +432,8 @@ void loop() {
             }
         }
     } else {
+        // WiFi 一直连不上：开机 45s 后自动进配网（换网零烧录的入口；BOOT 键按住上电则立即进）
+        if (!portalOn && (forcePortal || millis() > 45000)) portalStart();
         ensureWiFi();
         led(3, 1, 1);                   // 淡粉：链路未就绪
     }

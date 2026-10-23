@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1040" viewBox="0 0 1500 1040" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">
+<rect width="1500" height="1040" fill="#FFFFFF"/>
+<text x="40" y="52" font-size="22" font-weight="700" fill="#1A1A1A">UAV-LAB-01 遥测节点电路连接图</text>
+<text x="40" y="80" font-size="13" fill="#666666">ESP32-S3 + I2C 传感器总线（BME280 / MPU6050 / OLED）· 灰色虚线 = 到货后预留接入</text>
+<g font-size="13">
+<line x1="1190" y1="40" x2="1240" y2="40" stroke="#D32F2F" stroke-width="2.5"/>
+<text x="1250" y="44" fill="#333">3V3 电源</text>
+<line x1="1190" y1="62" x2="1240" y2="62" stroke="#1B1B1B" stroke-width="2.5"/>
+<text x="1250" y="66" fill="#333">GND 地</text>
+<line x1="1190" y1="84" x2="1240" y2="84" stroke="#1565C0" stroke-width="2.5"/>
+<text x="1250" y="88" fill="#333">SDA（I2C 数据）</text>
+<line x1="1190" y1="106" x2="1240" y2="106" stroke="#2E7D32" stroke-width="2.5"/>
+<text x="1250" y="110" fill="#333">SCL（I2C 时钟）</text>
+<line x1="1190" y1="128" x2="1240" y2="128" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<text x="1250" y="132" fill="#333">预留（未接入）</text>
+</g>
+<rect x="60" y="120" width="300" height="560" rx="8" fill="#FAFAFA" stroke="#37474F" stroke-width="1.8"/>
+<text x="76" y="150" font-size="16" font-weight="700" fill="#1A1A1A">ESP32-S3 模组</text>
+<text x="76" y="172" font-size="12" fill="#666">N16R8 · 16MB Flash · 2.4GHz WiFi</text>
+<text x="76" y="194" font-size="12" fill="#888">固件 UAV-LAB-01 · MQTT 上云</text>
+<text x="84" y="244" font-size="13" font-weight="600" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">3V3</text>
+<text x="156" y="244" font-size="11" fill="#777">电源输出</text>
+<line x1="360" y1="250" x2="402" y2="250" stroke="#D32F2F" stroke-width="2.5"/>
+<circle cx="360" cy="250" r="3.5" fill="#D32F2F"/>
+<text x="84" y="304" font-size="13" font-weight="600" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GND</text>
+<text x="156" y="304" font-size="11" fill="#777">公共地</text>
+<line x1="360" y1="310" x2="402" y2="310" stroke="#1B1B1B" stroke-width="2.5"/>
+<circle cx="360" cy="310" r="3.5" fill="#1B1B1B"/>
+<text x="84" y="394" font-size="13" font-weight="600" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GPIO8</text>
+<text x="156" y="394" font-size="11" fill="#777">I2C SDA</text>
+<line x1="360" y1="400" x2="402" y2="400" stroke="#1565C0" stroke-width="2.5"/>
+<circle cx="360" cy="400" r="3.5" fill="#1565C0"/>
+<text x="84" y="474" font-size="13" font-weight="600" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GPIO9</text>
+<text x="156" y="474" font-size="11" fill="#777">I2C SCL</text>
+<line x1="360" y1="480" x2="402" y2="480" stroke="#2E7D32" stroke-width="2.5"/>
+<circle cx="360" cy="480" r="3.5" fill="#2E7D32"/>
+<text x="84" y="574" font-size="13" font-weight="600" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GPIO17</text>
+<text x="156" y="574" font-size="11" fill="#777">UART TX（预留）</text>
+<line x1="360" y1="580" x2="402" y2="580" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<circle cx="360" cy="580" r="3.5" fill="#9E9E9E"/>
+<text x="84" y="624" font-size="13" font-weight="600" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GPIO18</text>
+<text x="156" y="624" font-size="11" fill="#777">UART RX（预留）</text>
+<line x1="360" y1="630" x2="402" y2="630" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<circle cx="360" cy="630" r="3.5" fill="#9E9E9E"/>
+<line x1="434" y1="230" x2="434" y2="830" stroke="#D32F2F" stroke-width="2.5"/>
+<line x1="474" y1="265" x2="474" y2="865" stroke="#1B1B1B" stroke-width="2.5"/>
+<line x1="534" y1="300" x2="534" y2="900" stroke="#1565C0" stroke-width="2.5"/>
+<line x1="574" y1="335" x2="574" y2="935" stroke="#2E7D32" stroke-width="2.5"/>
+<text x="422" y="218" font-size="11" fill="#D32F2F">3V3</text>
+<text x="462" y="253" font-size="11" fill="#1B1B1B">GND</text>
+<text x="522" y="288" font-size="11" fill="#1565C0">SDA</text>
+<text x="562" y="323" font-size="11" fill="#2E7D32">SCL</text>
+<line x1="402" y1="250" x2="434" y2="250" stroke="#D32F2F" stroke-width="2.5"/>
+<circle cx="434" cy="250" r="4" fill="#D32F2F"/>
+<line x1="402" y1="310" x2="474" y2="310" stroke="#1B1B1B" stroke-width="2.5"/>
+<circle cx="474" cy="310" r="4" fill="#1B1B1B"/>
+<line x1="402" y1="400" x2="534" y2="400" stroke="#1565C0" stroke-width="2.5"/>
+<circle cx="534" cy="400" r="4" fill="#1565C0"/>
+<line x1="402" y1="480" x2="574" y2="480" stroke="#2E7D32" stroke-width="2.5"/>
+<circle cx="574" cy="480" r="4" fill="#2E7D32"/>
+<rect x="780" y="150" width="400" height="170" rx="8" fill="#FAFAFA" stroke="#37474F" stroke-width="1.8"/>
+<text x="796" y="180" font-size="16" font-weight="700" fill="#1A1A1A">BME280 传感器</text>
+<text x="796" y="202" font-size="12" fill="#666">温度 / 湿度 / 气压</text>
+<line x1="434" y1="230" x2="780" y2="230" stroke="#D32F2F" stroke-width="2.5"/>
+<circle cx="434" cy="230" r="4" fill="#D32F2F"/>
+<text x="794" y="234" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">VCC</text>
+<line x1="474" y1="258" x2="780" y2="258" stroke="#1B1B1B" stroke-width="2.5"/>
+<circle cx="474" cy="258" r="4" fill="#1B1B1B"/>
+<text x="794" y="262" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GND</text>
+<line x1="534" y1="286" x2="780" y2="286" stroke="#1565C0" stroke-width="2.5"/>
+<circle cx="534" cy="286" r="4" fill="#1565C0"/>
+<text x="794" y="290" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SDA</text>
+<line x1="574" y1="314" x2="780" y2="314" stroke="#2E7D32" stroke-width="2.5"/>
+<circle cx="574" cy="314" r="4" fill="#2E7D32"/>
+<text x="794" y="318" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SCL</text>
+<rect x="1102" y="164" width="62" height="24" rx="4" fill="#ECEFF1" stroke="#B0BEC5"/>
+<text x="1133" y="181" font-size="13" font-weight="700" text-anchor="middle" font-family="Menlo, Consolas, monospace" fill="#37474F">0x76</text>
+<text x="898" y="246" font-size="12" fill="#555">alt 气压高度来源</text>
+<text x="898" y="266" font-size="12" fill="#555">SDO / CSB 悬空 → 地址 0x76</text>
+<rect x="780" y="350" width="400" height="170" rx="8" fill="#FAFAFA" stroke="#37474F" stroke-width="1.8"/>
+<text x="796" y="380" font-size="16" font-weight="700" fill="#1A1A1A">MPU6050（GY-521）</text>
+<text x="796" y="402" font-size="12" fill="#666">三轴加速度 + 三轴陀螺仪</text>
+<line x1="434" y1="430" x2="780" y2="430" stroke="#D32F2F" stroke-width="2.5"/>
+<circle cx="434" cy="430" r="4" fill="#D32F2F"/>
+<text x="794" y="434" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">VCC</text>
+<line x1="474" y1="458" x2="780" y2="458" stroke="#1B1B1B" stroke-width="2.5"/>
+<circle cx="474" cy="458" r="4" fill="#1B1B1B"/>
+<text x="794" y="462" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GND</text>
+<line x1="534" y1="486" x2="780" y2="486" stroke="#1565C0" stroke-width="2.5"/>
+<circle cx="534" cy="486" r="4" fill="#1565C0"/>
+<text x="794" y="490" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SDA</text>
+<line x1="574" y1="514" x2="780" y2="514" stroke="#2E7D32" stroke-width="2.5"/>
+<circle cx="574" cy="514" r="4" fill="#2E7D32"/>
+<text x="794" y="518" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SCL</text>
+<rect x="1102" y="364" width="62" height="24" rx="4" fill="#ECEFF1" stroke="#B0BEC5"/>
+<text x="1133" y="381" font-size="13" font-weight="700" text-anchor="middle" font-family="Menlo, Consolas, monospace" fill="#37474F">0x68</text>
+<text x="898" y="446" font-size="12" fill="#555">roll / pitch 姿态角来源</text>
+<text x="898" y="466" font-size="12" fill="#555">XDA/XCL/AD0/INT 悬空 → 0x68</text>
+<rect x="780" y="550" width="400" height="170" rx="8" fill="#FAFAFA" stroke="#37474F" stroke-width="1.8"/>
+<text x="796" y="580" font-size="16" font-weight="700" fill="#1A1A1A">OLED 0.96″（SSD1306）</text>
+<text x="796" y="602" font-size="12" fill="#666">128×64 I2C 显示</text>
+<line x1="434" y1="630" x2="780" y2="630" stroke="#D32F2F" stroke-width="2.5"/>
+<circle cx="434" cy="630" r="4" fill="#D32F2F"/>
+<text x="794" y="634" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">VCC</text>
+<line x1="474" y1="658" x2="780" y2="658" stroke="#1B1B1B" stroke-width="2.5"/>
+<circle cx="474" cy="658" r="4" fill="#1B1B1B"/>
+<text x="794" y="662" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GND</text>
+<line x1="534" y1="686" x2="780" y2="686" stroke="#1565C0" stroke-width="2.5"/>
+<circle cx="534" cy="686" r="4" fill="#1565C0"/>
+<text x="794" y="690" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SDA</text>
+<line x1="574" y1="714" x2="780" y2="714" stroke="#2E7D32" stroke-width="2.5"/>
+<circle cx="574" cy="714" r="4" fill="#2E7D32"/>
+<text x="794" y="718" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SCL</text>
+<rect x="1102" y="564" width="62" height="24" rx="4" fill="#ECEFF1" stroke="#B0BEC5"/>
+<text x="1133" y="581" font-size="13" font-weight="700" text-anchor="middle" font-family="Menlo, Consolas, monospace" fill="#37474F">0x3C</text>
+<text x="898" y="646" font-size="12" fill="#555">本机状态屏（不上云）</text>
+<text x="898" y="666" font-size="12" fill="#555">4 线全接：GND / VCC / SCL / SDA</text>
+<rect x="780" y="750" width="400" height="170" rx="8" fill="#FAFAFA" stroke="#9E9E9E" stroke-width="1.8" stroke-dasharray="7,5"/>
+<text x="796" y="780" font-size="16" font-weight="700" fill="#1A1A1A">INA219 功率计（预留）</text>
+<text x="796" y="802" font-size="12" fill="#666">电池电压 / 电流</text>
+<line x1="434" y1="830" x2="780" y2="830" stroke="#D32F2F" stroke-width="2.5" stroke-dasharray="6,4"/>
+<circle cx="434" cy="830" r="4" fill="#D32F2F"/>
+<text x="794" y="834" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">VCC</text>
+<line x1="474" y1="858" x2="780" y2="858" stroke="#1B1B1B" stroke-width="2.5" stroke-dasharray="6,4"/>
+<circle cx="474" cy="858" r="4" fill="#1B1B1B"/>
+<text x="794" y="862" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">GND</text>
+<line x1="534" y1="886" x2="780" y2="886" stroke="#1565C0" stroke-width="2.5" stroke-dasharray="6,4"/>
+<circle cx="534" cy="886" r="4" fill="#1565C0"/>
+<text x="794" y="890" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SDA</text>
+<line x1="574" y1="914" x2="780" y2="914" stroke="#2E7D32" stroke-width="2.5" stroke-dasharray="6,4"/>
+<circle cx="574" cy="914" r="4" fill="#2E7D32"/>
+<text x="794" y="918" font-size="12" font-family="Menlo, Consolas, monospace" fill="#1A1A1A">SCL</text>
+<rect x="1102" y="764" width="62" height="24" rx="4" fill="#ECEFF1" stroke="#B0BEC5"/>
+<text x="1133" y="781" font-size="13" font-weight="700" text-anchor="middle" font-family="Menlo, Consolas, monospace" fill="#37474F">0x40</text>
+<text x="898" y="846" font-size="12" fill="#555">vbat / ibat 来源</text>
+<text x="898" y="866" font-size="12" fill="#555">到货后接入 → 地址 0x40</text>
+<rect x="60" y="720" width="300" height="90" rx="8" fill="#FAFAFA" stroke="#9E9E9E" stroke-width="1.8" stroke-dasharray="7,5"/>
+<text x="76" y="750" font-size="16" font-weight="700" fill="#1A1A1A">NEO-7M GPS 模块（预留）</text>
+<text x="76" y="772" font-size="12" fill="#666">UART 接入 · 到货后成为 lat/lon 主位置源</text>
+<line x1="402" y1="580" x2="408" y2="580" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<line x1="408" y1="580" x2="408" y2="750" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<line x1="408" y1="750" x2="360" y2="750" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<line x1="402" y1="630" x2="396" y2="630" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<line x1="396" y1="630" x2="396" y2="782" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<line x1="396" y1="782" x2="360" y2="782" stroke="#9E9E9E" stroke-width="2.5" stroke-dasharray="6,4"/>
+<g font-size="12.5" fill="#444">
+<text x="40" y="965">注 1：I2C 总线（SDA=GPIO8 / SCL=GPIO9）挂 4 个从机地址：0x76 BME280 · 0x68 MPU6050 · 0x3C OLED · 0x40 INA219（预留）；</text>
+<text x="40" y="989">　　　SDA/SCL 上拉电阻由各模块板载提供，无需外加。</text>
+<text x="40" y="1013">注 2：全部器件 3.3V 供电，由 ESP32-S3 板载 LDO 从 USB 5V 降压输出；锂电池严禁直接接入 3V3 引脚（BME280 上限 3.6V）。</text>
+<text x="40" y="1037">注 3：实线为当前固件（fw 0.7.2）已接线并调试通过；虚线为规划中的扩展接口，到货后接入即转实线。</text>
+</g>
+</svg>
